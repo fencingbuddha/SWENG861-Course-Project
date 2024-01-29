@@ -1,0 +1,20 @@
+# Node modules
+
+node_modules/
+
+
+
+# Environment files
+
+.env
+
+
+
+# Build output (React build, for example)
+
+build/
+
+
+
+# Other files/directories to ignore
+

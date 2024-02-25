@@ -24,56 +24,38 @@ app.get('/api/flights', async (req, res, next) => {
   const { departDate, returnDate, fromId, toId } = req.query;
   const errors = [];
 
-  if (!departDate) {
-    errors.push("Departure date is missing.");
-  }
-  if (!returnDate) {
-    errors.push("Return date is missing.");
-  }
-  if (!fromId) {
-    errors.push("Please enter an airport in the 'From:' field.");
-  }
-  if (!toId) {
-    errors.push("Please enter an airport in the 'To:' field.");
-  }
+  if (!departDate) errors.push("Departure date is missing.");
+  if (!fromId) errors.push("Please enter an airport in the 'From:' field.");
+  if (!toId) errors.push("Please enter an airport in the 'To:' field.");
 
-  if (errors.length > 0) {
-    return res.status(400).json({ errors });
-  }
-
-  const departureId = fromId.toUpperCase();
-  const arrivalId = toId.toUpperCase();
-
-  console.log('API request parameters:', {
-    departure_id: departureId,
-    arrival_id: arrivalId,
-    outbound_date: departDate,
-    return_date: returnDate,
-  });
+  if (errors.length > 0) return res.status(400).json({ errors });
 
   try {
-    const json = await new Promise((resolve, reject) => {
-      getJson({
-        api_key: serpApiKey,
-        engine: "google_flights",
-        hl: "en",
-        gl: "us",
-        departure_id: departureId,
-        arrival_id: arrivalId,
-        outbound_date: departDate,
-        return_date: returnDate,
-        currency: "USD"
-      }, (json) => {
-        resolve(json);
-      }, (error) => {
-        reject(error);
-      });
-    });
+    const apiRequestParams = {
+      api_key: serpApiKey,
+      engine: "google_flights",
+      hl: "en",
+      gl: "us",
+      departure_id: fromId.toUpperCase(),
+      arrival_id: toId.toUpperCase(),
+      outbound_date: departDate,
+      currency: "USD",
+      type: returnDate? "1" : "2"
+    };
 
+    // Only add return_date if it's provided (implying a round-trip flight)
+    if (returnDate) apiRequestParams.return_date = returnDate;
+
+    const json = await new Promise((resolve, reject) => {
+      getJson(apiRequestParams, resolve, reject);
+    });
+    
     console.log('API response:', json);
     res.json(json);
   } catch (error) {
-    next(error);
+    console.error('Error fetching flights:', error);
+    // Send a 500 Internal Server Error response if an unexpected error occurs
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 

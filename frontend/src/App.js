@@ -39,37 +39,48 @@ const FlightSearch = () => { // Defining the FlightSearch component as a functio
       : fromId && toId && departDate && returnDate;
 
   // Function to fetch flights from the server
-  const fetchFlights = async () => {
-    setError(''); // Resetting error state
-    if (flightType === "roundTrip" && !returnDate) {
-      setError('Please enter a return date for round-trip flights.');
-      return;
-    }
+const fetchFlights = async () => {
+  setError(''); // Resetting error state
+  if (!fromId || !toId || !isValidAirportId(fromId) || !isValidAirportId(toId)) {
+    setError('Please enter valid airport IDs.');
+    return;
+  }
 
-    try {
-      // Making an HTTP GET request to fetch flights
-      const params = {  
-          departDate,
-          fromId,
-          toId,
-      };
-      if (flightType === "roundTrip") {
-        params.returnDate = returnDate;
-      }
-      const response = await axios.get('/api/flights', { params });
-      // Extracting flights data from the response and updating state
-      const bestFlights = response.data.best_flights || [];
-      const otherFlights = response.data.other_flights || [];
-      const allFlights = [...bestFlights, ...otherFlights];
-      setFlights(allFlights);
-      setError('');
-    } catch (error) {
-      // Handling errors
-      console.error('Error fetching flights:', error);
-      setError('Failed to fetch flights. Please try again.');
-      setFlights([]);
+  if (flightType === "roundTrip" && !returnDate) {
+    setError('Please enter a return date for round-trip flights.');
+    return;
+  }
+
+  try {
+    // Making an HTTP GET request to fetch flights
+    const params = {  
+        departDate,
+        fromId,
+        toId,
+    };
+    if (flightType === "roundTrip") {
+      params.returnDate = returnDate;
     }
-  };  
+    const response = await axios.get('/api/flights', { params });
+    // Extracting flights data from the response and updating state
+    const bestFlights = response.data.best_flights || [];
+    const otherFlights = response.data.other_flights || [];
+    const allFlights = [...bestFlights, ...otherFlights];
+    setFlights(allFlights);
+    setError('');
+  } catch (error) {
+    // Handling errors
+    console.error('Error fetching flights:', error);
+    setError('Failed to fetch flights. Please try again.');
+    setFlights([]);
+  }
+};  
+
+// Function to validate airport ID format
+const isValidAirportId = (id) => {
+  // Assuming airport ID should be 3 characters long and all uppercase letters
+  return /^[A-Z]{3}$/.test(id);
+};
 
   // Function to save a flight
   const saveFlight = async (flight) => {

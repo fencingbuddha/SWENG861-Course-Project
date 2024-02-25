@@ -1,76 +1,126 @@
 const express = require('express');
-
-const axios = require('axios');
-
+const cors = require('cors');
+const sqlite3 = require('sqlite3').verbose(); // Import sqlite3 library
 const app = express();
-
 const port = process.env.PORT || 3001;
-
-
-
+const { getJson } = require("serpapi");
 require('dotenv').config();
-
-
-
-const rapidApiKey = process.env.X_RAPIDAPI_KEY;
-
-const rapidApiHost = 'host_of_the_api'; // Replace with the host of the RapidAPI service
-
-const apiBaseURL = 'base_url_of_the_api'; // Replace with the base URL of the API
-
-
+const serpApiKey = process.env.SERPAPI_KEY;
 
 app.use(express.json());
+app.use(cors());
 
+// Setup SQLite database connection
+const dbPath = 'C:/Users/beebe/SWENG861/Flight Database/flightdatabase.db';
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE, (err) => {
+  if (err) {
+    console.error('Error opening database', err.message);
+  } else {
+    console.log('Connected to the flightdatabase database.');
+  }
+});
 
+app.get('/api/flights', async (req, res, next) => {
+  const { departDate, returnDate, fromId, toId } = req.query;
+  const errors = [];
 
-app.get('/api/flight-status', async (req, res) => {
-
-  const { departureAirport, arrivalAirport, date } = req.query;
-
-
-
-  if (!departureAirport || !arrivalAirport || !date) {
-
-    return res.status(400).json({ error: 'Missing required parameters' });
-
+  if (!departDate) {
+    errors.push("Departure date is missing.");
+  }
+  if (!returnDate) {
+    errors.push("Return date is missing.");
+  }
+  if (!fromId) {
+    errors.push("Please enter an airport in the 'From:' field.");
+  }
+  if (!toId) {
+    errors.push("Please enter an airport in the 'To:' field.");
   }
 
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
 
+  const departureId = fromId.toUpperCase();
+  const arrivalId = toId.toUpperCase();
+
+  console.log('API request parameters:', {
+    departure_id: departureId,
+    arrival_id: arrivalId,
+    outbound_date: departDate,
+    return_date: returnDate,
+  });
 
   try {
-
-    const response = await axios.get(`${apiBaseURL}/endpoint/${departureAirport}/${arrivalAirport}/${date}`, {
-
-      headers: {
-
-        'X-RapidAPI-Key': rapidApiKey,
-
-        'X-RapidAPI-Host': rapidApiHost
-
-      }
-
+    const json = await new Promise((resolve, reject) => {
+      getJson({
+        api_key: serpApiKey,
+        engine: "google_flights",
+        hl: "en",
+        gl: "us",
+        departure_id: departureId,
+        arrival_id: arrivalId,
+        outbound_date: departDate,
+        return_date: returnDate,
+        currency: "USD"
+      }, (json) => {
+        resolve(json);
+      }, (error) => {
+        reject(error);
+      });
     });
 
-
-
-    res.json(response.data);
-
+    console.log('API response:', json);
+    res.json(json);
   } catch (error) {
-
-    console.error('Error fetching flight status:', error.message);
-
-    res.status(500).json({ error: 'Internal Server Error' });
-
+    next(error);
   }
-
 });
 
 
+app.post('/api/save-flight', (req, res) => {
+  const { flightNumber, departure, arrival } = req.body;
+  const queryText = 'INSERT INTO flights(flight_number, departure, arrival) VALUES(?, ?, ?)';
+  db.run(queryText, [flightNumber, departure, arrival], function(err) {
+    if (err) {
+      console.error('Error saving flight:', err.message);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+      res.status(200).json({ message: 'Flight saved successfully', id: this.lastID });
+    }
+  });
+});
+
+// GET endpoint for retrieving saved flights
+app.get('/api/saved-flights', (req, res) => {
+  db.all("SELECT * FROM flights", [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching saved flights:', err);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.delete('/api/delete-flight/:flightNumber', (req, res) => {
+  const { flightNumber } = req.params;
+  db.run("DELETE FROM flights WHERE flight_number = ?", [flightNumber], function(err) {
+    if (err) {
+      console.error('Error deleting flight:', err);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+    res.json({ message: 'Flight deleted successfully', deletedRows: this.changes });
+  });
+});
+
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  const statusCode = err.statusCode || 500;
+  const errorMessage = err.message || 'Internal Server Error';
+  res.status(statusCode).json({ error: errorMessage });
+});
 
 app.listen(port, () => {
-
-  console.log(`Server is running on http://localhost:${port}`);
-
+  console.log('Server is running on http://localhost:3001');
 });
-

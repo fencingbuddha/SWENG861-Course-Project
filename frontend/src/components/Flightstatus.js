@@ -1,25 +1,13 @@
-// src/components/Flightstatus.js
-
 import React, { useState } from 'react';
-
 import axios from 'axios';
 
 
-
 const Flightstatus = () => {
-
   const [flightNumber, setFlightNumber] = useState('');
-
   const [flightStatus, setFlightStatus] = useState(null);
-
   const [error, setError] = useState(null);
-
-
-
   const handleInputChange = (event) => {
-
     setFlightNumber(event.target.value);
-
   };
 
 

@@ -79,9 +79,15 @@ const FlightSearch = () => {
       fetchSavedFlights();
     } catch (error) {
       console.error('Error saving flight:', error);
-      alert('Failed to save flight.');
+      // Check if the error is due to a UNIQUE constraint violation
+      // This check might need to be adjusted based on the actual error structure and message
+      if (error.response || error.response.data || error.response.data.error || error.response.data.error.includes('UNIQUE')) {
+        alert('Failed to save flight: Flight already exists in the database.');
+      } else {
+        alert('Failed to save flight. Please try again.');
+      }
     }
-  };
+  };  
 
   const fetchSavedFlights = async () => {
     try {

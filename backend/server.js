@@ -49,7 +49,7 @@ app.get('/api/flights', async (req, res, next) => {
     const json = await new Promise((resolve, reject) => {
       getJson(apiRequestParams, resolve, reject);
     });
-    
+
     console.log('API response:', json);
     res.json(json);
   } catch (error) {
@@ -66,12 +66,20 @@ app.post('/api/save-flight', (req, res) => {
   db.run(queryText, [flightNumber, departure, arrival], function(err) {
     if (err) {
       console.error('Error saving flight:', err.message);
-      res.status(500).json({ error: 'Internal Server Error' });
+      // Check if the error is a UNIQUE constraint violation
+      if (err.code === 'SQLITE_CONSTRAINT: UNIQUE constraint failed: flights.flight_number') {
+        // Respond with a 409 Conflict status code to indicate a duplicate entry
+        res.status(409).json({ error: 'Flight already exists in the database.' });
+      } else {
+        // For other types of errors, continue to respond with a 500 Internal Server Error
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
     } else {
       res.status(200).json({ message: 'Flight saved successfully', id: this.lastID });
     }
   });
 });
+
 
 // GET endpoint for retrieving saved flights
 app.get('/api/saved-flights', (req, res) => {

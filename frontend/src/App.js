@@ -96,7 +96,7 @@ const isValidAirportId = (id) => {
     } catch (error) {
       console.error('Error saving flight:', error);
       // Handling errors related to saving flight
-      if (error.response && error.response.data && error.response.data.error && error.response.data.error.includes('UNIQUE')) {
+      if (error.response || error.response.data || error.response.data.error || error.response.data.error.includes('UNIQUE')) {
         alert('Failed to save flight: Flight already exists in the database.');
       } else {
         alert('Failed to save flight. Please try again.');
